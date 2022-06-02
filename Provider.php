@@ -2,27 +2,25 @@
 
 namespace LittleSkinChina\BsSocialiteProviderLittleSkin;
 
-use SocialiteProviders\Manager\OAuth2\AbstractProvider;
-use SocialiteProviders\Manager\OAuth2\User;
+use Exception;
+use GuzzleHttp\RequestOptions;
+use Illuminate\Support\Arr;
 
-class Provider extends AbstractProvider
+class ProjectMProvider extends AbstractProvider implements ProviderInterface
 {
     /**
-     * Unique Provider Identifier.
+     * The scopes being requested.
+     *
+     * @var array
      */
-    const IDENTIFIER = 'PROJECTM';
-
-    /**
-     * {@inheritdoc}
-     */
-    protected $scopes = [''];
+    protected $scopes = ['user:email'];
 
     /**
      * {@inheritdoc}
      */
     protected function getAuthUrl($state)
     {
-        return $this->buildAuthUrlFromBase('https://sauth.darc.pro/application/o/authorize/', $state);
+        return $this->buildAuthUrlFromBase('https://sauth.darc.pro/login/oauth/authorize', $state);
     }
 
     /**
@@ -30,7 +28,7 @@ class Provider extends AbstractProvider
      */
     protected function getTokenUrl()
     {
-        return 'https://sauth.darc.pro/application/o/token/';
+        return 'https://sauth.darc.pro/login/oauth/access_token';
     }
 
     /**
@@ -38,15 +36,44 @@ class Provider extends AbstractProvider
      */
     protected function getUserByToken($token)
     {
-        $response = $this->getHttpClient()->get('https://sauth.darc.pro/user', [
-            'headers' => [
-                'Authorization' => 'Bearer '.$token,
-            ],
-        ]);
+        $userUrl = 'https://sauth.darc.pro/user';
+
+        $response = $this->getHttpClient()->get(
+            $userUrl, $this->getRequestOptions($token)
+        );
 
         $user = json_decode($response->getBody(), true);
 
+        if (in_array('user:email', $this->scopes, true)) {
+            $user['email'] = $this->getEmailByToken($token);
+        }
+
         return $user;
+    }
+
+    /**
+     * Get the email for the given access token.
+     *
+     * @param  string  $token
+     * @return string|null
+     */
+    protected function getEmailByToken($token)
+    {
+        $emailsUrl = 'https://sauth.darc.pro/user/emails';
+
+        try {
+            $response = $this->getHttpClient()->get(
+                $emailsUrl, $this->getRequestOptions($token)
+            );
+        } catch (Exception $e) {
+            return;
+        }
+
+        foreach (json_decode($response->getBody(), true) as $email) {
+            if ($email['primary'] && $email['verified']) {
+                return $email['email'];
+            }
+        }
     }
 
     /**
@@ -54,22 +81,28 @@ class Provider extends AbstractProvider
      */
     protected function mapUserToObject(array $user)
     {
-        return (new User())->setRaw($user)->map([
-            'id'       => $user['uid'],
-            'nickname' => $user['nickname'],
-            'name'     => null,
-            'email'    => $user['email'],
-            'avatar'   => null,
+        return (new User)->setRaw($user)->map([
+            'id' => $user['id'],
+            'nickname' => $user['login'],
+            'name' => Arr::get($user, 'name'),
+            'email' => Arr::get($user, 'email'),
+            'avatar' => $user['avatar_url'],
         ]);
     }
 
     /**
-     * {@inheritdoc}
+     * Get the default options for an HTTP request.
+     *
+     * @param  string  $token
+     * @return array
      */
-    protected function getTokenFields($code)
+    protected function getRequestOptions($token)
     {
-        return array_merge(parent::getTokenFields($code), [
-            'grant_type' => 'authorization_code'
-        ]);
+        return [
+            RequestOptions::HEADERS => [
+                'Accept' => 'application/vnd.github.v3+json',
+                'Authorization' => 'token '.$token,
+            ],
+        ];
     }
 }
