@@ -11,6 +11,6 @@ class LittleSkinExtendSocialite
      */
     public function handle(SocialiteWasCalled $socialiteWasCalled)
     {
-        $socialiteWasCalled->extendSocialite('projectm', __NAMESPACE__.'\Provider');
+        $socialiteWasCalled->extendSocialite('projectm', __NAMESPACE__.'\ProjectMProvider');
     }
 }
