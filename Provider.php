@@ -10,7 +10,7 @@ class Provider extends AbstractProvider
     /**
      * Unique Provider Identifier.
      */
-    const IDENTIFIER = 'LITTLESKIN';
+    const IDENTIFIER = 'PROJECTM';
 
     /**
      * {@inheritdoc}
@@ -22,7 +22,7 @@ class Provider extends AbstractProvider
      */
     protected function getAuthUrl($state)
     {
-        return $this->buildAuthUrlFromBase('https://mcskin.littleservice.cn/oauth/authorize', $state);
+        return $this->buildAuthUrlFromBase('https://sauth.darc.pro/application/o/authorize/', $state);
     }
 
     /**
@@ -30,7 +30,7 @@ class Provider extends AbstractProvider
      */
     protected function getTokenUrl()
     {
-        return 'https://mcskin.littleservice.cn/oauth/token';
+        return 'https://sauth.darc.pro/application/o/token/';
     }
 
     /**
@@ -38,7 +38,7 @@ class Provider extends AbstractProvider
      */
     protected function getUserByToken($token)
     {
-        $response = $this->getHttpClient()->get('https://mcskin.littleservice.cn/api/user', [
+        $response = $this->getHttpClient()->get('https://sauth.darc.pro/user', [
             'headers' => [
                 'Authorization' => 'Bearer '.$token,
             ],
